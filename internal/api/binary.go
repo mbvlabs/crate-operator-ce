@@ -62,7 +62,46 @@ var CreateBinaryAppRequestSchema = z.Struct(z.Shape{
 
 const (
 	CreateBinaryAppAction = "create_binary_app"
+	DeployBinaryAppAction = "deploy_binary_app"
 )
+
+var DeployBinaryAppRequestSchema = z.Struct(z.Shape{
+	"teamSlug": z.String().
+		Required(z.Message("Team Slug must be provided")).
+		Min(3).
+		Max(50, z.Message("Team Slug must be between 3 and 50 characters")),
+	"deploymentId": z.String().
+		Required(z.Message("DeploymentID must be provided")).
+		Max(100, z.Message("DeploymentID must be between 1 and 100 characters")),
+	"appId": z.String().
+		Required(z.Message("App ID must be provided")).
+		Min(3).
+		Max(100, z.Message("App ID must be between 3 and 100 characters")),
+	"appSlug": z.String().
+		Required(z.Message("App Slug must be provided")).
+		Min(3).
+		Max(50, z.Message("App Slug must be between 3 and 50 characters")),
+	"artifactName": z.String().
+		Required(z.Message("Artifact name must be provided")).
+		Min(1).
+		Max(200, z.Message("Artifact name must be between 1 and 200 characters")),
+	"artifactSource": z.String().
+		Required(z.Message("Artifact source must be provided")).
+		Min(1).
+		Max(2000, z.Message("Artifact source must be between 1 and 2000 characters")),
+	"artifactVersion": z.String().
+		Required(z.Message("Artifact version must be provided")).
+		Min(1).
+		Max(100, z.Message("Artifact version must be between 1 and 100 characters")),
+	"environmentName": z.String().
+		Required(z.Message("Environment name must be provided")).
+		Min(1).
+		Max(100, z.Message("Environment name must be between 1 and 100 characters")),
+	"callbackUrl": z.String().
+		Required(z.Message("CallbackURL must be provided")).
+		URL().
+		Max(2000, z.Message("CallbackURL must be between 1 and 2000 characters")),
+})
 
 // CreateBinaryApp implements ServerInterface.
 func (h *APIHandler) CreateBinaryApp(w http.ResponseWriter, r *http.Request) {
@@ -531,207 +570,258 @@ func (h *APIHandler) CreateBinaryApp(w http.ResponseWriter, r *http.Request) {
 
 // DeployBinaryApp implements ServerInterface.
 func (h *APIHandler) DeployBinaryApp(w http.ResponseWriter, r *http.Request) {
-	// var req DeployBinaryAppRequest
-	// if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusBadRequest,
-	// 		"error",
-	// 		fmt.Sprintf("invalid request body: %v", err),
-	// 		"",
-	// 	)
-	// 	return
-	// }
-	//
-	// if strings.TrimSpace(req.AppSlug) == "" || strings.TrimSpace(req.Environment) == "" {
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusBadRequest,
-	// 		"error",
-	// 		"app_slug and environment are required",
-	// 		"",
-	// 	)
-	// 	return
-	// }
-	//
-	// // Create callback emitter if callback_url is provided
-	// var callbackURL, deploymentID string
-	// if req.CallbackUrl != nil {
-	// 	callbackURL = *req.CallbackUrl
-	// }
-	// if req.DeploymentId != nil {
-	// 	deploymentID = *req.DeploymentId
-	// }
-	// emitter := NewCallbackEmitter(callbackURL, deploymentID, h.apiKey)
-	//
-	// var logs strings.Builder
-	// fmt.Fprintf(&logs, "Deploying binary app %s/%s version %s\n",
-	// 	req.AppSlug,
-	// 	req.Environment,
-	// 	req.ArtifactVersion)
-	//
-	// appDir := path.Join(appsBaseDir(), req.AppSlug, req.Environment)
-	// if _, err := os.Stat(appDir); os.IsNotExist(err) {
-	// 	emitter.EmitFailed(r.Context(), "download", fmt.Errorf("app does not exist"))
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusBadRequest,
-	// 		"error",
-	// 		"app does not exist, use create endpoint first",
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	//
-	// // Download new binary
-	// binaryPath := path.Join(appDir, req.ArtifactVersion)
-	// binaryURL, _, err := buildArtifactURLs(
-	// 	req.ArtifactSource,
-	// 	req.ArtifactVersion,
-	// 	req.ArtifactName,
-	// )
-	// if err != nil {
-	// 	emitter.EmitFailed(r.Context(), "download", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusBadRequest,
-	// 		"error",
-	// 		fmt.Sprintf("failed to build artifact URLs: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	//
-	// slog.Info("Downloading new binary", "url", binaryURL, "path", binaryPath)
-	//
-	// emitter.EmitStart(r.Context(), "download", "Starting binary download")
-	// fmt.Fprintf(&logs, "Downloading binary version %s\n", req.ArtifactVersion)
-	// if err := downloadToFile(r.Context(), binaryURL, binaryPath); err != nil {
-	// 	emitter.EmitFailed(r.Context(), "download", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusInternalServerError,
-	// 		"error",
-	// 		fmt.Sprintf("failed to download binary: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	// emitter.EmitDone(r.Context(), "download", "Binary downloaded successfully")
-	// logs.WriteString("Binary downloaded successfully\n")
-	//
-	// // // Verify checksum
-	// // checksumBytes, err := fetchBytes(r.Context(), checksumURL)
-	// // if err != nil {
-	// // 	fmt.Fprintf(&logs, "Warning: could not fetch checksum: %v\n", err)
-	// // } else {
-	// // 	if err := verifyChecksum(binaryPath, string(checksumBytes)); err != nil {
-	// // 		_ = os.Remove(binaryPath)
-	// // 		writeDeployResponse(w, http.StatusBadRequest, "error", fmt.Sprintf("checksum verification failed: %v", err), logs.String())
-	// // 		return
-	// // 	}
-	// // 	logs.WriteString("Checksum verified\n")
-	// // }
-	//
-	// // Make binary executable
-	// if err := os.Chmod(binaryPath, 0o755); err != nil {
-	// 	emitter.EmitFailed(r.Context(), "switch", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusInternalServerError,
-	// 		"error",
-	// 		fmt.Sprintf("failed to chmod binary: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	//
-	// emitter.EmitStart(r.Context(), "switch", "Updating systemd service")
-	//
-	// // Update systemd service to point to new version
-	// serviceName := fmt.Sprintf("%s-%s", req.AppSlug, req.Environment)
-	// servicePath := systemdServicePath(serviceName)
-	// configDir := path.Join(appsConfigDir(), req.AppSlug, req.Environment)
-	//
-	// // Read current service file to get port
-	// serviceContent, err := os.ReadFile(servicePath)
-	// if err != nil {
-	// 	emitter.EmitFailed(r.Context(), "switch", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusInternalServerError,
-	// 		"error",
-	// 		fmt.Sprintf("failed to read service file: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	//
-	// // Extract port from existing service (simple parsing)
-	// port := 0
-	// for line := range strings.SplitSeq(string(serviceContent), "\n") {
-	// 	if strings.Contains(line, "PORT=") {
-	// 		parts := strings.SplitN(line, "=", 2)
-	// 		if len(parts) == 2 {
-	// 			fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &port)
-	// 		}
-	// 	}
-	// }
-	//
-	// if err := createSystemdService(serviceName, binaryPath, appDir, configDir, port, req.Args); err != nil {
-	// 	emitter.EmitFailed(r.Context(), "switch", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusInternalServerError,
-	// 		"error",
-	// 		fmt.Sprintf("failed to update systemd service: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	// emitter.EmitDone(r.Context(), "switch", "Systemd service updated")
-	// logs.WriteString("Updated systemd service\n")
-	//
-	// // Reload and restart service (requires sudo for system units)
-	// emitter.EmitStart(r.Context(), "restart", "Restarting service")
-	// if err := sudoRun("systemctl", "daemon-reload").Run(); err != nil {
-	// 	emitter.EmitFailed(r.Context(), "restart", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusInternalServerError,
-	// 		"error",
-	// 		fmt.Sprintf("failed to reload systemd: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	//
-	// if err := sudoRun("systemctl", "restart", serviceName).Run(); err != nil {
-	// 	emitter.EmitFailed(r.Context(), "restart", err)
-	// 	writeDeployResponse(
-	// 		w,
-	// 		http.StatusInternalServerError,
-	// 		"error",
-	// 		fmt.Sprintf("failed to restart service: %v", err),
-	// 		logs.String(),
-	// 	)
-	// 	return
-	// }
-	// emitter.EmitDone(r.Context(), "restart", "Service restarted")
-	// logs.WriteString("Service restarted with new version\n")
-	//
-	// emitter.EmitCompleted(
-	// 	r.Context(),
-	// 	fmt.Sprintf("Deployed version %s successfully", req.ArtifactVersion),
-	// )
-	// writeDeployResponse(
-	// 	w,
-	// 	http.StatusOK,
-	// 	"success",
-	// 	fmt.Sprintf("deployed version %s", req.ArtifactVersion),
-	// 	logs.String(),
-	// )
+	var req DeployBinaryAppRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeDeployResponse(
+			w,
+			http.StatusBadRequest,
+			"error",
+			fmt.Sprintf("invalid request body: %v", err),
+			"",
+		)
+		return
+	}
+	if validationErrors := DeployBinaryAppRequestSchema.Validate(&req); validationErrors != nil {
+		var msgs []string
+		for _, ve := range validationErrors {
+			msgs = append(msgs, ve.Message)
+		}
+		writeDeployResponse(
+			w,
+			http.StatusBadRequest,
+			"error",
+			fmt.Sprintf("validation errors: %s", strings.Join(msgs, "; ")),
+			"",
+		)
+		return
+	}
+
+	writeDeployResponse(w, http.StatusAccepted, "accepted", "app deployment accepted", "")
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		groupingID := xid.New().String()
+		emitter := NewCallbackEmitter(req.CallbackUrl, h.apiKey)
+
+		emit := func(ev DeploymentEvent) bool {
+			ev.GroupingID = groupingID
+			ev.Action = DeployBinaryAppAction
+			if err := emitter.EmitDeploymentEvent(ctx, ev); err != nil {
+				slog.Error("failed to emit deployment event", "error", err)
+				return false
+			}
+			return true
+		}
+
+		if !emit(DeploymentEvent{
+			Scope:   "action",
+			Status:  "in_progress",
+			Message: fmt.Sprintf("Starting deployment for %s/%s", req.AppSlug, req.EnvironmentName),
+		}) {
+			return
+		}
+
+		appDir := path.Join(
+			appsBaseDir(),
+			strings.ToLower(req.TeamSlug)+"-"+strings.ToLower(req.AppId),
+			strings.ToLower(req.EnvironmentName),
+		)
+		configDir := path.Join(
+			appsConfigDir(),
+			strings.ToLower(req.TeamSlug)+"-"+strings.ToLower(req.AppId),
+			strings.ToLower(req.EnvironmentName),
+		)
+
+		if _, err := os.Stat(appDir); os.IsNotExist(err) {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "download",
+				Status:  "failed",
+				Message: "App does not exist, use create endpoint first",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		if !emit(DeploymentEvent{
+			Scope:   "step",
+			Step:    "download",
+			Status:  "in_progress",
+			Message: fmt.Sprintf("Downloading binary version %s", req.ArtifactVersion),
+		}) {
+			return
+		}
+
+		binaryPath := path.Join(appDir, req.ArtifactVersion)
+		binaryURL, _, err := buildArtifactURLs(req.ArtifactSource, req.ArtifactVersion, req.ArtifactName)
+		if err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "download",
+				Status:  "failed",
+				Message: "Failed to build artifact URLs",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		if err := downloadToFile(ctx, binaryURL, binaryPath); err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "download",
+				Status:  "failed",
+				Message: "Failed to download binary",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		if err := os.Chmod(binaryPath, 0o755); err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "download",
+				Status:  "failed",
+				Message: "Failed to chmod binary",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		if !emit(DeploymentEvent{
+			Scope:   "step",
+			Step:    "download",
+			Status:  "completed",
+			Message: "Binary downloaded successfully",
+		}) {
+			return
+		}
+
+		if req.EnvVars != nil && len(*req.EnvVars) > 0 {
+			envPath := path.Join(configDir, "env")
+			var envContent strings.Builder
+			for key, value := range *req.EnvVars {
+				fmt.Fprintf(&envContent, "%s=%s\n", key, value)
+			}
+			if err := sudoWriteFile(envPath, []byte(envContent.String()), 0o640); err != nil {
+				emit(DeploymentEvent{
+					Scope:   "step",
+					Step:    "environmental_variables",
+					Status:  "failed",
+					Message: "Failed to write env file",
+					Error:   err.Error(),
+				})
+				return
+			}
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "environmental_variables",
+				Status:  "completed",
+				Message: "Environment variables updated",
+			})
+		}
+
+		serviceName := strings.ToLower(
+			fmt.Sprintf("%s--%s--%s", req.TeamSlug, req.AppSlug, req.EnvironmentName),
+		)
+
+		if !emit(DeploymentEvent{
+			Scope:   "step",
+			Step:    "switch",
+			Status:  "in_progress",
+			Message: "Updating systemd service",
+		}) {
+			return
+		}
+
+		servicePath := systemdServicePath(serviceName)
+		serviceContent, err := os.ReadFile(servicePath)
+		if err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "switch",
+				Status:  "failed",
+				Message: "Failed to read current service file",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		port := 0
+		for _, line := range strings.Split(string(serviceContent), "\n") {
+			if strings.Contains(line, "Environment=PORT=") {
+				parts := strings.SplitN(line, "=", 3)
+				if len(parts) == 3 {
+					_, _ = fmt.Sscanf(strings.TrimSpace(parts[2]), "%d", &port)
+				}
+			}
+		}
+
+		if err := createSystemdService(serviceName, binaryPath, appDir, configDir, port, req.Args); err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "switch",
+				Status:  "failed",
+				Message: "Failed to update systemd service",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		emit(DeploymentEvent{
+			Scope:   "step",
+			Step:    "switch",
+			Status:  "completed",
+			Message: "Systemd service updated",
+		})
+
+		if !emit(DeploymentEvent{
+			Scope:   "step",
+			Step:    "restart_service",
+			Status:  "in_progress",
+			Message: "Restarting service",
+		}) {
+			return
+		}
+
+		if err := sudoRun("systemctl", "daemon-reload").Run(); err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "restart_service",
+				Status:  "failed",
+				Message: "Failed to reload systemd",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		if err := sudoRun("systemctl", "restart", serviceName).Run(); err != nil {
+			emit(DeploymentEvent{
+				Scope:   "step",
+				Step:    "restart_service",
+				Status:  "failed",
+				Message: "Failed to restart service",
+				Error:   err.Error(),
+			})
+			return
+		}
+
+		emit(DeploymentEvent{
+			Scope:   "step",
+			Step:    "restart_service",
+			Status:  "completed",
+			Message: "Service restarted successfully",
+		})
+
+		emit(DeploymentEvent{
+			Scope:   "action",
+			Status:  "completed",
+			Message: fmt.Sprintf("Deployed version %s successfully", req.ArtifactVersion),
+		})
+	}()
 }
+
 
 // TODO: make naming explictly binary app actions
 

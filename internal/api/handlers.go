@@ -31,10 +31,6 @@ func NewAPIHandler(version, apiKey string) *APIHandler {
 	}
 }
 
-// func agentBinaryPath() string {
-// 	return path.Join(agentInstallDir(), "mithlond-agent")
-// }
-
 func appsBaseDir() string {
 	return "/opt/mithlond/apps"
 }
